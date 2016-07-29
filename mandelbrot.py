@@ -256,8 +256,8 @@ class Plot:
             print("Lower right box corner out of range!")
 
             # Setting lower right corner to (self.size,self.size)
-            pi2 = selt.size
-            pj2 = selt.size
+            pi2 = self.size
+            pj2 = self.size
         else:
             print("Lower right box corner: " + str((pi2,pj2)))
 
@@ -298,8 +298,8 @@ if __name__ == "__main__":
     # Create plot
     bigPixelSize = 1
     noBigPixels = 500
-    corner = complex(-0.5,0.75)
-    zSize = 0.25
+    corner = complex(-2.,2)
+    zSize = 4.
     plot = Plot("text.bmp")
     plot.setMapping(bigPixelSize,noBigPixels,corner,zSize)
 
