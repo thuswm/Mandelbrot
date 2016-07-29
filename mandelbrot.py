@@ -14,7 +14,7 @@ finer detail.
 """
 
 from math import pi,sin,cos
-import Image
+from PIL import Image
 
 
 # ----------------------------------------------------------------------------------
