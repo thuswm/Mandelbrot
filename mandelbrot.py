@@ -1,13 +1,5 @@
 """
-This script will draw the mandelbrot set to a bitmap.
-
-The calculation and generation of a bitmap is really straight forward if no
-parameters are allowed. This script however introduces the possibility to adjust
-the pixel size of the plot.
-
-Another feature for exploring the details of the plot is a zooming function.
-This allows the user to define a small subregion of the plot to be generated in
-finer detail.
+This script will generate a visualization of the Mandelbrot set.
 
 @author: Michael Thuswaldner
 @date: 2016-07-27
@@ -73,6 +65,7 @@ class ColorMap:
         # Calculate color ranges
         tRange = N/2
         bRange = N - tRange
+        fRange = tRange/3
 
         # Interpolate between Blue and Green
         for i in range(tRange):
@@ -94,7 +87,17 @@ class ColorMap:
 
             self.colorMap.append(color)
 
-        # Replace the last colot with black
+        # Make the upper end transition to a darker shade of blue
+        d = 0.05
+        for i in range(fRange):
+            darkness = d + ((1.-d)/fRange)*i
+            color = self.colorMap[i]
+            green = int(darkness*color[1])
+            blue = int(darkness*color[2])
+            self.colorMap[i] = (0,green,blue)
+
+
+        # Replace the last color with black
         self.colorMap[-1] = (0,0,0)
 
     def getColor(self, n):
@@ -298,7 +301,7 @@ if __name__ == "__main__":
     # Create plot
     bigPixelSize = 1
     noBigPixels = 500
-    corner = complex(-2.,2)
+    corner = complex(-2.0,2.0)
     zSize = 4.
     plot = Plot("text.bmp")
     plot.setMapping(bigPixelSize,noBigPixels,corner,zSize)
