@@ -6,50 +6,48 @@ This script will generate a visualization of the Mandelbrot set.
 """
 
 from math import pi,sin,cos
-from PIL import Image
+from PySide import QtGui, QtCore
 
 
 # ----------------------------------------------------------------------------------
-def mandelbrotIterations(c,N=100):
+class PlotRange:
     """
-    This function does the Mandelbrot iterations.
-
-    Iterate the function:
-    z(n+1) = z(n)^2 + c
-    for the complex number c and return the number of iterations before |z(n+1)|>2
-
-    The maximum number of iterations are limited to N.
-
-    Arguments:
-    c -- test value (complex) to see if it belongs to the Mandelbrot set.
-
-    Return:
-    Number of iterations until the iteration yields |z(n+1)|>2. The maximum number
-    of iterations are limited to N.
+    This class is a simple container for the Mandelbrot plot range definition.
+    The plot range is always a square region.
     """
 
-    # Initialize start value for iteration
-    z = complex(0.,0.)
+    def __init__(self, corner=complex(0.,0.), zSize = 2.):
+        """
+        Constructor with default values.
 
-    # Iteration counter
-    n = 0
+        Arguments:
+        corner       -- The upper left corner of the plot area (complex).
+        zSize        -- The side length of the plot square (float).
 
-    # Iterate
-    while (abs(z) < 2.) and (n < N):
-        n = n + 1
-        z = z*z + c
+        Return:
+        None.
+        """
 
-    return n
+        self.corner = corner
+        self.zSize = zSize
 
 # ----------------------------------------------------------------------------------
 class ColorMap:
     """
     This class creates the color map to be used for plotting the Mandelbrot set.
+
+    NOTE! This is perhaps not the best way to create a color map but it will do
+    for now.
     """
 
-    def __init__(self, N, intensity):
+    def __init__(self):
         """
         Constructor.
+        """
+
+    def generate(self, N, intensity):
+        """
+        This function generates the color map.
 
         Arguments:
         N         -- Number of colors in color map (int).
@@ -57,12 +55,14 @@ class ColorMap:
 
         Return:
         None.
+
         """
 
         # The color map list
         self.colorMap = []
 
         # Calculate color ranges
+        self.N = N
         tRange = N/2
         bRange = N - tRange
         fRange = tRange/3
@@ -73,7 +73,6 @@ class ColorMap:
             blue = int(intensity*cos(alpha))
             green = int(intensity*sin(alpha))
             color = (0,green,blue)
-            #print(color)
 
             self.colorMap.append(color)
 
@@ -83,7 +82,6 @@ class ColorMap:
             green = int(intensity*cos(alpha))
             red = int(intensity*sin(alpha))
             color = (red,green,0)
-            #print(color)
 
             self.colorMap.append(color)
 
@@ -95,7 +93,6 @@ class ColorMap:
             green = int(darkness*color[1])
             blue = int(darkness*color[2])
             self.colorMap[i] = (0,green,blue)
-
 
         # Replace the last color with black
         self.colorMap[-1] = (0,0,0)
@@ -111,225 +108,230 @@ class ColorMap:
         RGB color (tuple).
         """
 
-        return self.colorMap[n]
+        if (n<self.N):
+            return self.colorMap[n]
+        else:
+            print("Error: Color map request out of range!")
+            exit(2)
 
 # ----------------------------------------------------------------------------------
-class Plot:
+class SenderObject(QtCore.QObject):
     """
-    This class acts as the interface between the complex numbers and the bitmap.
+    This is a simple class which will allow me to send a signal from another
+    class which itself does not inherit from QObject.
     """
 
-    def __init__(self, filename):
+    # Attributes
+    itrSignal = QtCore.Signal(int)
+    maxSignal = QtCore.Signal(int)
+
+    def __init__(self):
+        """
+        Constructor.
+        """
+
+        super(SenderObject,self).__init__()
+
+# ----------------------------------------------------------------------------------
+class MandelBase(object):
+    """
+    This class is the base class for the Mandelbrot calculation and is used to
+    hide member functions not directly accessed by the user.
+
+    The MandelbrotImage class inherits this class and is then used as the user
+    interface.
+    """
+
+    def __init__(self):
         """
         Constructor.
 
-        Arguments:
-        filename -- Name of the bitmap file (string, not used).
-
-        Return:
-        None.
-        """
-
-        # Set internal values
-        self.filename = filename
-
-    def setMapping(self, bigPixelSize, noBigPixels, corner, zSize):
-        """
         Set the complex to bitmap mapping values.
-
-        Arguments:
-        bigPixelSize -- The size in pixels of the bigPixel (int).
-        noBigPixels  -- The number of bigPixels per bitmap side (int).
-        corner       -- The upper left corner of the plot area (complex).
-        zSize        -- The side length of the plot square (float).
 
         Return:
         None
         """
 
-        # Set internal values
-        self.bigPixelSize = bigPixelSize
-        self.noBigPixels = noBigPixels
-        self.corner = corner
-        self.zSize = zSize
+        # Create a sender object for emitting signals
+        self.sender = SenderObject()
 
-        # Calculate bitmap size
-        self.size = bigPixelSize*noBigPixels
 
-        # Setup bitmap
-        self.img = Image.new( 'RGB', (self.size,self.size), "black") # create a new black image
-        self.pixels = self.img.load() # create the pixel map
-
-    def getPixelMap(self):
+    def mandelbrotIterations(self,c,N=100):
         """
-        Get the bigPixel to complex number map for the bitmap.
+        This member function does the Mandelbrot iterations.
+
+        Iterate the function:
+        z(n+1) = z(n)^2 + c
+        for the complex number c and return the number of iterations before |z(n+1)|>2
+
+        The maximum number of iterations are limited to N.
 
         Arguments:
-        None.
+        c -- test value (complex) to see if it belongs to the Mandelbrot set.
 
         Return:
-        List of complex numbers associate with the bibPixels.
+        Number of iterations until the iteration yields |z(n+1)|>2. The maximum number
+        of iterations are limited to N.
+        """
+
+        # Initialize start value for iteration
+        z = complex(0.,0.)
+
+        # Iteration counter
+        n = 0
+
+        # Iterate
+        while (abs(z) < 2.) and (n < N):
+            n = n + 1
+            z = z*z + c
+
+        return n
+
+
+    def getPixelMap(self,noPixels,plotRange):
+        """
+        Get the pixel to complex number map for the bitmap.
+
+        Arguments:
+        noPixels     -- The number of pixels per bitmap side (int).
+        plotRange    -- The range in the complex plane to plot.
+
+        Return:
+        List of complex numbers associate with the pixels.
         """
 
         # Initialize the pixel map
         pixelMap = []
-        for i in range(self.noBigPixels):
+        for i in range(noPixels):
             row = []
-            for j in range(self.noBigPixels):
+            for j in range(noPixels):
                 row.append(complex(0.,0.))
 
             pixelMap.append(row)
 
-        # Iterate through all bigPixels
-        for i in range(self.noBigPixels):
-            for j in range(self.noBigPixels):
+        # Iterate through all pixels
+        cDelta = plotRange.zSize/float(noPixels)
+        for i in range(noPixels):
+            for j in range(noPixels):
 
-                cDelta = self.zSize/self.noBigPixels
-
-                cReal = self.corner.real + 0.5*cDelta + i*cDelta
-                cImag = self.corner.imag - 0.5*cDelta - j*cDelta
+                cReal = plotRange.corner.real + 0.5*cDelta + i*cDelta
+                cImag = plotRange.corner.imag - 0.5*cDelta - j*cDelta
                 pixelMap[i][j] = complex(cReal,cImag)
 
         # Return list
         return pixelMap
 
-    def paint(self, ni, nj, color):
+
+    def fillImage(self, plotRange, noPixels, iterN, colorMap):
         """
-        Paint bigPixel (ni,nj) onto bitmap with color.
-
-        Argument:
-        ni    -- bigPixel row index (int).
-        nj    -- bigPixel column index (int).
-        color -- RGB color (tuple).
-
-        Return:
-        None
-        """
-
-        if (ni > self.noBigPixels) or (nj > self.noBigPixels):
-            # Complex number is out of range
-            print("Error: bigPixel index out of range!")
-        else:
-            # Start pixels
-            pi = self.bigPixelSize*ni
-            pj = self.bigPixelSize*nj
-
-            # Paint a square
-            for i in range(self.bigPixelSize):
-                for j in range(self.bigPixelSize):
-                    self.pixels[pi+i,pj+j] = color
-
-    def showZoomRegion(self, bCorner, bSize, color=(225,0,0)):
-        """
-        Add a red box to mark a possible zoom area.
+        This function fills the image with colors representing the mandelbrot
+        iterations.
 
         Arguments:
-        bCorner          -- The upper left corner of the plot area (complex).
-        bSize            -- The side length of the plot square (float).
-        color            -- RGB color for the box to be drawn, defailt red
-                            (tuple).
+        plotRange    -- The range in the complex plane to plot.
+        noPixels     -- The number of pixels per bitmap side (int).
+        iterN        -- Max number of manderbrot iterations.
+        colorMap     -- The color map object.
 
         Return:
-        None.
+        The generated image.
         """
 
-        print("Window size: " + str((self.size,self.size)))
+        # Create image object
+        image = QtGui.QImage(noPixels,noPixels,QtGui.QImage.Format_RGB32)
 
-        # Calculate edge pixels
-        pi1 = int(((-self.corner.real
-              + bCorner.real)/float(self.zSize))*self.size) # X-axis upper left index
-        pj1 = int(((self.corner.imag
-              - bCorner.imag)/float(self.zSize))*self.size) # Y-axis upper left index
+        # iteration number
+        itrNo = 1
 
-        if (pi1 < 0.) or (pj1 < 0.):
-            print("Left upper box corner out of range!")
+        # Get list of complex numbers
+        complexList = self.getPixelMap(noPixels,plotRange)
 
-            # Setting upper left corner to (0,0)
-            pi1 = 0
-            pj1 = 0
-        else:
-            print("Upper left box corner: " + str((pi1,pj1)))
+        # Send max number of iterations to progress bar
+        self.sender.maxSignal.emit(noPixels*noPixels)
 
-        pi2 = int(((-self.corner.real + bCorner.real
-              + bSize)/float(self.zSize))*self.size) - 1 # X-axis lower left index
-        pj2 = int(((self.corner.imag - bCorner.imag
-              + bSize)/float(self.zSize))*self.size) - 1 # Y-axis lower left index
+        # Iterate through all complex numbers and calculate the Mandelbrot
+        # iterations.
+        for i in range(noPixels):
+            for j in range(noPixels):
+                # Get complex number
+                c = complexList[i][j]
 
-        if (pi2 > self.size) or (pj2 > self.size):
-            print("Lower right box corner out of range!")
+                # Calculate number of iterations
+                mIter = self.mandelbrotIterations(c,iterN)
 
-            # Setting lower right corner to (self.size,self.size)
-            pi2 = self.size
-            pj2 = self.size
-        else:
-            print("Lower right box corner: " + str((pi2,pj2)))
+                # Get color
+                color = colorMap.getColor(mIter-1)
 
-        # Draw vertical lines
-        for j in range(pj2 - pj1):
-            self.pixels[pi1,pj1+j] = color
-            self.pixels[pi2,pj1+j] = color
+                # Plot Pixel
+                if (i > noPixels) or (j > noPixels):
+                    # Complex number is out of range
+                    print("Error: Pixel index out of range!")
+                else:
+                    # Paint one pixel
+                    image.setPixel(i,j,QtGui.qRgb(color[0],color[1],color[2]))
 
-        # Draw horizontal lines
-        for i in range(pi2 - pi1):
-            self.pixels[pi1+i,pj1] = color
-            self.pixels[pi1+i,pj2] = color
+                # Emit signal and increase iteration number
+                self.sender.itrSignal.emit(itrNo)
+                itrNo += 1
 
-    def show(self):
+        return image
+
+# ----------------------------------------------------------------------------------
+class MandelbrotImage(MandelBase):
+    """
+    This class generate an image of the mandelbrot set.
+
+    This is the interface for other applications.
+    """
+
+    def __init__(self):
         """
-        Show the painted Plot.
+        Constructor.
+        """
+
+        # Init base class
+        super(MandelbrotImage,self).__init__()
+
+
+    def generate(self, noPixels, colorMap, plotRange, depth):
+        """
+        This function fills the image with the range plotRange of the Mandelbrot
+        set. The depth of the colors, i.e. the number of colors used for
+        representation, is the same as the imaximum number of Mandelbrot iterations.
 
         Arguments:
-        None.
+        noPixels     -- Image size, pixels x pixels (int)
+        colorMap     -- The color map used for the image.
+        plotRange    -- The range in the complex plane to plot.
+        depth        -- The maximum number of Mandelbrot iterations.
+
 
         Return:
-        None.
+        The generated image.
         """
 
-        self.img.show()
+        # Fill image and return
+        return self.fillImage(plotRange,noPixels,depth,colorMap)
 
 
 # === Main ===================================================================
 if __name__ == "__main__":
 
-    # Set max mandelbrot iterations
-    iterN = 200
+    print("Generating an image of the mandelbrot set")
+
+    # Variables
+    depth = 200
+    intensity = 200
+    noPixels = 500
+    plotRange = PlotRange(complex(-2.,2.),4.)
 
     # Create a color map
-    intensity = 200
-    colorMap = ColorMap(iterN, intensity)
+    colorMap = ColorMap()
+    colorMap.generate(depth,intensity)
 
-    # Create plot
-    bigPixelSize = 1
-    noBigPixels = 500
-    corner = complex(-2.0,2.0)
-    zSize = 4.
-    plot = Plot("text.bmp")
-    plot.setMapping(bigPixelSize,noBigPixels,corner,zSize)
+    # Create a image of the mandelbrot set
+    mandelbrot = MandelbrotImage(noPixels,colorMap)
+    mandelbrot.generate(plotRange,depth)
+    mandelbrot.save("slask.bmp")
 
-    # Get list of complex numbers
-    complexList = plot.getPixelMap()
-
-    # Iterate through all complex numbers ans calculate the Mandelbrot
-    # iterations.
-    for i in range(noBigPixels):
-        for j in range(noBigPixels):
-            # Get complex number
-            c = complexList[i][j]
-
-            # Calculate number of iterations
-            mIter = mandelbrotIterations(c,iterN)
-
-            # Get color
-            color = colorMap.getColor(mIter-1)
-
-            # Plot bigPixel
-            plot.paint(i,j,color)
-
-    # Draw red box
-    if (True):
-        bCorner = complex(-0.5,0.75)
-        bSize = 0.25
-        plot.showZoomRegion(bCorner,bSize)
-
-    # Show final plot
-    plot.show()
+    print("Done! The picture is saved to a file.")

@@ -1,6 +1,6 @@
 # Mandelbrot
-
-This is a python script for generating a visualization of the Mandelbrot set.
+This is a python script generating a GUI based tool for exploring the
+visualization of the Mandelbrot set.
 
 The Mandelbrot set is defined as the set of complex numbers c for which the
 iterative function,
@@ -14,65 +14,45 @@ stays bounded to,
 for any iterations N.
 
 # Usage of the script
+Run the mandelgui.py script in your favourite python environment.
 
-The script is not interactive but simple modifications of it makes it possible
-for the user explore different parts of the Mandelbrot set.
+Example (ipython):
+run mandelgui.py
 
-This script contains a function for testing if a complex number belongs to the
-Mandelbrot set. In order not to end up in infinitive loops an approximation has
-been introduced where the maximum number of iterations is restricted to a
-finite number N. When this number is reaced in the complex number is said to
-belong to the set.
+This will start a Qt application showing an image property panel, an image view
+and a status bar.
 
-Two classes are also present in the script. One for generating the bitmap plot
-of the mandel brot set and one for generating the color scale for the plot.
+## The image property panel
+The image property panel has three editable input boxes. These boxes contain
+numbers that controls the image generation. The firs number is the size of the
+image in pixels, i.e. the default number 500 tells the application to generate
+an image of the size 500 times 500.
 
-## Setting the plotting area
+The second number is the depth of the image. This means the number of colors
+used to visualize the Mandelbrot set.
 
-The term bigPixel has been introduced to allow the generation of a low
-resolution plot of the Mandelbrot set with a reduced set of calculation points.
-The user may define a bigPixel to be represented by a square of pixles (normal
-bitmap pixels).
+The third number is the color intensity. This number ranges from 0 being all
+black to 255 being the brightest.
 
-The initial settings define the bigPixel to be equal to one pixel:
+To the left of the property fields you find a vertical progress bar. Since this
+is a python script and the generation (calculation) of the Mandelbrot set image
+is relative time consuming this progress bar will inform the user where in the
+process the image generation is.
 
-  bigPixelSize = 1
+## The image view
+This is the portion of the application showing the generated image. It is also
+the place where the application interacts with the user.
 
-The resolution of the plot is defined by setting the number of bigpixels:
+The following commands are available: zooming -- Box select the area you would
+like to inspect closer. As soon as the left mouse button is released the
+generation of a new image is started (using input also from the property
+panel).  Redraw  -- In order for the updated image properties to take effect
+you need to redraw the image. This is done by double clicking anywhere in the
+view.  Going back in history -- By right clicking anywhere in the view field
+the previous view is generated.
 
-  noBigPixels = 500
+## The status bar
+The status bar at the bottom of the application window shows you the current
+mouse position in the image view. These coordinates are given in the complex
+plane.
 
-The user defines the complex range to be plotted by setting the corner and the
-size of a square in the complex plane:
-
-  corner = complex(-2.,2) zSize = 4.
-
-## The red box
-
-When running the script unchanged a red square will appear in the generated
-bitmap. This square can be turned on and off by setting the following if
-statement to True or False respectively:
-
-  # Draw red box
-  if (True):
-      bCorner = complex(-0.5,0.75)
-      bSize = 0.25
-      plot.showZoomRegion(bCorner,bSize)
-
-The idea of this square is to help the user visualize a subsequent refinement
-of the plot. The variables under the if-statement should be understood from the
-previous description.
-
-## Suggested first use
-
-For a first run of this script one could first run the script as it is and then
-alter the plotting area to refine the plot in accordance with the red box.
-
-The steps are the following:
-1. Run the unchanged script.
-2. Edit the plot area variables to say the following:
-
-  corner = complex(-0.5,0.75)
-  zSize = 0.25
-
-3. Run the script again.
